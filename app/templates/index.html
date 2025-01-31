@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ChirpStack Authentication</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/">Login</a></li>
+                <li><a href="/devices" id="devicesLink" style="display: none;">Devices</a></li>
+                <li><a href="/gateways" id="gatewaysLink" style="display: none;">Gateways</a></li>
+                <li><button onclick="logout()" id="logoutButton" style="display: none;">Logout</button></li>
+            </ul>
+        </nav>
+    </header>   
+
+    <h1>ChirpStack Authentication</h1>
+
+    <form id="configForm">
+        <label for="server">Server Address:</label>
+        <input type="text" id="server" name="server" required>
+
+        <label for="api_token">API Token:</label>
+        <input type="password" id="api_token" name="api_token" required>
+        <button type="button" id="toggleApiKey">Show</button>
+
+        <button type="submit">Save Configuration</button>
+    </form>
+
+    <p id="statusMessage"></p>
+
+    <script src="/static/auth.js"></script>
+</body>
+</html>

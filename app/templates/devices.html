@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Devices</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/">Login</a></li>
+                <li><a href="/devices">Devices</a></li>
+                <li><a href="/gateways">Gateways</a></li>
+                <li><button onclick="logout()" id="logoutButton">Logout</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <h1>Device Management</h1>
+
+    <h2>Select Tenant</h2>
+    <select id="tenantSelect" onchange="loadApplications()"></select>
+
+    <h2>Select Application</h2>
+    <select id="applicationSelect" onchange="loadDevices()"></select>
+
+    <h2>Upload CSV for Bulk Device Creation</h2>
+    <input type="file" id="csvFile" onchange="previewCSV()">
+    <button onclick="uploadDevices()">Upload</button>
+
+    <h3>CSV Preview</h3>
+    <table id="csvPreviewTable" border="1">
+        <thead>
+            <tr>
+                <th>Device Name</th>
+                <th>Dev EUI</th>
+                <th>App Key</th>
+                <th>App EUI</th>
+                <th>Description</th>
+                <th>Device Profile</th>
+                <th>Application</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <h2>Manually Add Device</h2>
+    <input type="text" id="deviceName" placeholder="Device Name">
+    <input type="text" id="devEUI" placeholder="Device EUI">
+    <input type="text" id="appKey" placeholder="App Key">
+    <input type="text" id="appEUI" placeholder="App EUI">
+    <input type="text" id="description" placeholder="Description">
+    
+    <h3>Select Device Profile</h3>
+    <select id="deviceProfileSelect"></select>
+
+    <button onclick="addDevice()">Add Device</button>
+
+    <h2>Current Devices</h2>
+    <ul id="deviceList"></ul>
+
+    <script src="/static/devices.js"></script>
+</body>
+</html>

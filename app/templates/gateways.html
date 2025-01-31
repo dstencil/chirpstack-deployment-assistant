@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Gateways</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/">Login</a></li>
+                <li><a href="/devices">Devices</a></li>
+                <li><a href="/gateways">Gateways</a></li>
+                <li><button onclick="logout()" id="logoutButton">Logout</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <h1>Gateway Management</h1>
+
+    <h2>Select Tenant</h2>
+    <select id="tenantSelect"></select>
+
+    <h2>Upload CSV for Bulk Gateway Creation</h2>
+    <input type="file" id="gatewayCsvFile" onchange="previewGatewayCSV()">
+    <button onclick="uploadGateways()">Upload</button>
+
+    <h3>CSV Preview</h3>
+    <table id="gatewayCsvPreviewTable" border="1">
+        <thead>
+            <tr>
+                <th>Gateway Name</th>
+                <th>Gateway ID</th>
+                <th>Description</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Altitude</th>
+                <th>Stats Interval</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <h2>Manually Add Gateway</h2>
+    <input type="text" id="gatewayName" placeholder="Gateway Name">
+    <input type="text" id="gatewayId" placeholder="Gateway ID (EUI64)">
+    <input type="text" id="gatewayDescription" placeholder="Description">
+    <input type="number" id="latitude" placeholder="Latitude">
+    <input type="number" id="longitude" placeholder="Longitude">
+    <input type="number" id="altitude" placeholder="Altitude">
+    <input type="number" id="statsInterval" placeholder="Stats Interval (Default: 30)">
+    
+    <button onclick="addGateway()">Add Gateway</button>
+
+    <h2>Current Gateways</h2>
+    <ul id="gatewayList"></ul>
+
+    <script src="/static/gateways.js"></script>
+</body>
+</html>
