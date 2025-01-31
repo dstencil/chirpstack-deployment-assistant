@@ -5,14 +5,17 @@ WORKDIR /app
 # Copy dependency list first to leverage Docker layer caching
 COPY requirements.txt .
 
-# Install dependencies safely and clean up in the same RUN command
-RUN apk add --no-cache --virtual .build-deps \
+# Update Alpine package index, install build dependencies, and remove them after installation
+RUN apk update && apk add --no-cache --virtual .build-deps \
         gcc musl-dev libffi-dev \
+    && python -m pip install --upgrade pip \
     && pip install --no-cache-dir --prefix=/install -r requirements.txt \
     && find /install -name '*.pyc' -delete \
     && find /install -name '__pycache__' -type d -exec rm -rf {} + \
     && rm -rf /root/.cache/pip \
-    && apk del .build-deps
+    && apk del .build-deps \
+    && rm -rf /var/cache/apk/*
+
 
 # Stage 2: Final lightweight image
 FROM python:3.12-alpine3.18
