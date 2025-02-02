@@ -12,6 +12,14 @@
 
 ## 🛠️ Installation  
 
+### With Docker
+```
+docker pull ghcr.io/dstencil/chirpstack-deployment-assistant:latest
+docker run -p 5000:5000 chirpstack-deployment-assistant:latest
+```
+
+### Local Build
+
 **1️⃣ Clone the Repository**  
 ```
 git clone https://github.com/your-username/chirpstack-deployment-assistant.git
