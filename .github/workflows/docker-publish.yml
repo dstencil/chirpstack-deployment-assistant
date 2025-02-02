@@ -25,6 +25,8 @@ env:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4.2.2
@@ -40,7 +42,7 @@ jobs:
 
       - name: Run Lint Checks
         run: |
-          flake8 .  # Automatically reads from pyproject.toml
+          flake8 .  # Automatically reads from .flake8
           isort . --check-only  # Reads config from pyproject.toml
           black --check .       # Uses pyproject.toml settings
   build:
