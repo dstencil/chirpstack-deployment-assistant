@@ -147,10 +147,11 @@ def upload_devices():
     file = request.files['file']
     tenant_id = request.form['tenant_id']
     application_id = request.form['application_id']
-    filename = os.path.join("uploads", file.filename)
-    file.save(filename)
+    filename = secure_filename(file.filename)
+    filepath = os.path.join("uploads", filename)
+    file.save(filepath)
 
-    with open(filename, "r") as csvfile:
+    with open(filepath, "r") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             create_device(tenant_id, application_id, row)
