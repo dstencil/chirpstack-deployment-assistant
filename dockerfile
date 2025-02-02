@@ -39,7 +39,7 @@ EXPOSE 5000
 ENV FLASK_APP=app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_ENV=production
-
+ENV FLASK_DEBUG=False
 # Secure entrypoint
 ENTRYPOINT ["python", "-m", "flask"]
 CMD ["run"]
