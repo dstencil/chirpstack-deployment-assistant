@@ -9,7 +9,8 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
 
-
+# Expose the app for testing
+application = app
 os.makedirs("uploads", exist_ok=True)
 
 
