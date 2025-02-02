@@ -40,7 +40,7 @@ jobs:
 
       - name: Run Lint Checks
         run: |
-          flake8 --config=pyproject.toml .  # Automatically reads from pyproject.toml
+          flake8 .  # Automatically reads from pyproject.toml
           isort . --check-only  # Reads config from pyproject.toml
           black --check .       # Uses pyproject.toml settings
   build:
