@@ -3,7 +3,7 @@ import grpc
 from chirpstack_api import api
 import csv
 import os
-
+from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
 
@@ -218,10 +218,13 @@ def upload_gateways():
 
     file = request.files['file']
     tenant_id = request.form['tenant_id']
-    filename = os.path.join("uploads", file.filename)
-    file.save(filename)
+    filename = secure_filename(file.filename)
+    filepath = os.path.normpath(os.path.join("uploads", filename))
+    if not filepath.startswith(os.path.abspath("uploads")):
+        return jsonify({"error": "Invalid file path"}), 400
+    file.save(filepath)
 
-    with open(filename, "r") as csvfile:
+    with open(filepath, "r") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             create_gateway(tenant_id, row)
