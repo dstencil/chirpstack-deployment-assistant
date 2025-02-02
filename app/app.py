@@ -3,8 +3,7 @@ import os
 
 import grpc
 from chirpstack_api import api
-from flask import (Flask, jsonify, redirect, render_template, request, session,
-                   url_for)
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
