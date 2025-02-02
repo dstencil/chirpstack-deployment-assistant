@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
-import grpc
-from chirpstack_api import api
 import csv
 import os
+
+import grpc
+from chirpstack_api import api
+from flask import (Flask, jsonify, redirect, render_template, request, session,
+                   url_for)
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
