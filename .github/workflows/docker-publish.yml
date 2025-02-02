@@ -29,10 +29,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4.2.2
-
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Set Up Python
-        uses: actions/setup-python@v5.4.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
         with:
           python-version: 3.12
 
@@ -58,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
@@ -95,7 +94,7 @@ jobs:
 
       - name: Build and push Docker image
         id: build-and-push
-        uses: docker/build-push-action@v6.13.0
+        uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
