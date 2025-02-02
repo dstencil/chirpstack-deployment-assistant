@@ -4,6 +4,7 @@ from chirpstack_api import api
 import csv
 import os
 from werkzeug.utils import secure_filename
+
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
 
@@ -31,13 +32,13 @@ def get_auth_token():
     return [("authorization", f"Bearer {session['api_token']}")]
 
 
-@app.route('/')
+@app.route("/")
 def auth():
     """Render authentication page."""
-    return render_template('auth.html')
+    return render_template("auth.html")
 
 
-@app.route('/set-config', methods=['POST'])
+@app.route("/set-config", methods=["POST"])
 def set_config():
     """Set API server and token in session."""
     session["server"] = request.json.get("server")
@@ -62,14 +63,16 @@ def set_config():
 def require_auth():
     """Redirect to login page if not authenticated."""
     if not session.get("authenticated"):
-        return redirect(url_for('auth'))
-    
-@app.route('/check-auth')
+        return redirect(url_for("auth"))
+
+
+@app.route("/check-auth")
 def check_auth():
     """Check if the user is authenticated."""
     return jsonify({"authenticated": session.get("authenticated", False)})
 
-@app.route('/tenants', methods=['GET'])
+
+@app.route("/tenants", methods=["GET"])
 def get_tenants():
     """Retrieve all tenants."""
     clients = get_grpc_clients()
@@ -85,7 +88,7 @@ def get_tenants():
         return jsonify({"error": f"gRPC error: {e.details()}"}), 500
 
 
-@app.route('/applications/<tenant_id>', methods=['GET'])
+@app.route("/applications/<tenant_id>", methods=["GET"])
 def get_applications(tenant_id):
     """Retrieve all applications for a given tenant."""
     clients = get_grpc_clients()
@@ -101,7 +104,7 @@ def get_applications(tenant_id):
         return jsonify({"error": f"gRPC error: {e.details()}"}), 500
 
 
-@app.route('/device-profiles/<tenant_id>', methods=['GET'])
+@app.route("/device-profiles/<tenant_id>", methods=["GET"])
 def get_device_profiles(tenant_id):
     """Retrieve all device profiles for a given tenant."""
     clients = get_grpc_clients()
@@ -122,7 +125,7 @@ def get_device_profiles(tenant_id):
         return jsonify({"error": f"gRPC error: {e.details()}"}), 500
 
 
-@app.route('/devices/<application_id>', methods=['GET'])
+@app.route("/devices/<application_id>", methods=["GET"])
 def get_devices(application_id):
     """Retrieve all devices for a given application."""
     clients = get_grpc_clients()
@@ -133,20 +136,29 @@ def get_devices(application_id):
     try:
         req = api.ListDevicesRequest(application_id=application_id, limit=100)
         resp = clients["device_client"].List(req, metadata=auth_token)
-        return jsonify([{"id": d.dev_eui, "name": d.name, "dev_eui": d.dev_eui} for d in resp.result])
+        return jsonify(
+            [
+                {"id": d.dev_eui, "name": d.name, "dev_eui": d.dev_eui}
+                for d in resp.result
+            ]
+        )
     except grpc.RpcError as e:
         return jsonify({"error": f"gRPC error: {e.details()}"}), 500
 
 
-@app.route('/upload-devices', methods=['POST'])
+@app.route("/upload-devices", methods=["POST"])
 def upload_devices():
     """Process uploaded CSV and create devices."""
-    if 'file' not in request.files or 'tenant_id' not in request.form or 'application_id' not in request.form:
+    if (
+        "file" not in request.files
+        or "tenant_id" not in request.form
+        or "application_id" not in request.form
+    ):
         return jsonify({"error": "Missing required fields"}), 400
 
-    file = request.files['file']
-    tenant_id = request.form['tenant_id']
-    application_id = request.form['application_id']
+    file = request.files["file"]
+    tenant_id = request.form["tenant_id"]
+    application_id = request.form["application_id"]
     filename = secure_filename(file.filename)
     filepath = os.path.join("uploads", filename)
     file.save(filepath)
@@ -159,12 +171,19 @@ def upload_devices():
     return jsonify({"message": "Devices uploaded successfully."})
 
 
-@app.route('/add-device', methods=['POST'])
+@app.route("/add-device", methods=["POST"])
 def add_device():
     """Manually add a single device."""
     data = request.json
 
-    required_fields = ["tenant_id", "application_id", "device_profile_id", "device_name", "dev_eui", "app_key"]
+    required_fields = [
+        "tenant_id",
+        "application_id",
+        "device_profile_id",
+        "device_name",
+        "dev_eui",
+        "app_key",
+    ]
     for field in required_fields:
         if field not in data or not data[field]:
             return jsonify({"error": f"Missing required field: {field}"}), 400
@@ -196,9 +215,10 @@ def create_device(tenant_id, application_id, row):
         clients["device_client"].Create(req, metadata=auth_token)
         return {"message": f"Device '{row['device_name']}' created successfully."}
     except grpc.RpcError as e:
-        return {"error": f"gRPC error while creating device: {e.details()}"}  
+        return {"error": f"gRPC error while creating device: {e.details()}"}
 
-@app.route('/remove-device/<device_id>', methods=['DELETE'])
+
+@app.route("/remove-device/<device_id>", methods=["DELETE"])
 def remove_device(device_id):
     """Remove a device."""
     clients = get_grpc_clients()
@@ -211,14 +231,15 @@ def remove_device(device_id):
     except grpc.RpcError as e:
         return jsonify({"error": f"gRPC error: {e.details()}"}), 500
 
-@app.route('/upload-gateways', methods=['POST'])
+
+@app.route("/upload-gateways", methods=["POST"])
 def upload_gateways():
     """Process uploaded CSV and create gateways."""
-    if 'file' not in request.files or 'tenant_id' not in request.form:
+    if "file" not in request.files or "tenant_id" not in request.form:
         return jsonify({"error": "Missing required fields"}), 400
 
-    file = request.files['file']
-    tenant_id = request.form['tenant_id']
+    file = request.files["file"]
+    tenant_id = request.form["tenant_id"]
     filename = secure_filename(file.filename)
     filepath = os.path.normpath(os.path.join("uploads", filename))
     if not filepath.startswith(os.path.abspath("uploads")):
@@ -231,6 +252,8 @@ def upload_gateways():
             create_gateway(tenant_id, row)
 
     return jsonify({"message": "Gateways uploaded successfully."})
+
+
 def create_gateway(tenant_id, row):
     """Create a single gateway from CSV or manual input."""
     clients = get_grpc_clients()
@@ -255,60 +278,68 @@ def create_gateway(tenant_id, row):
         req.gateway.location.latitude = safe_float(row.get("latitude", "0.0"))
         req.gateway.location.longitude = safe_float(row.get("longitude", "0.0"))
         req.gateway.location.altitude = safe_float(row.get("altitude", "0.0"))
-        req.gateway.stats_interval = int(row.get("stats_interval", 30)) if row.get("stats_interval") else 30
+        req.gateway.stats_interval = (
+            int(row.get("stats_interval", 30)) if row.get("stats_interval") else 30
+        )
 
         clients["gateway_client"].Create(req, metadata=auth_token)
         return {"message": f"Gateway '{row['gateway_name']}' created successfully."}
     except grpc.RpcError as e:
         return {"error": f"gRPC error while creating gateway: {e.details()}"}
-    
-@app.route('/gateways/<tenant_id>', methods=['GET'])
+
+
+@app.route("/gateways/<tenant_id>", methods=["GET"])
 def get_gateways(tenant_id):
     """Retrieve all gateways for a given tenant."""
     clients = get_grpc_clients()
     auth_token = get_auth_token()
-    
+
     if not clients or not auth_token:
         return jsonify({"error": "Not authenticated"}), 401
 
     try:
         req = api.ListGatewaysRequest(tenant_id=tenant_id, limit=100)
         resp = clients["gateway_client"].List(req, metadata=auth_token)
-        return jsonify([{
-            "id": g.gateway_id,
-            "name": g.name,
-            "description": g.description,
-            "latitude": g.location.latitude,
-            "longitude": g.location.longitude,
-            "altitude": g.location.altitude
-        } for g in resp.result])
+        return jsonify(
+            [
+                {
+                    "id": g.gateway_id,
+                    "name": g.name,
+                    "description": g.description,
+                    "latitude": g.location.latitude,
+                    "longitude": g.location.longitude,
+                    "altitude": g.location.altitude,
+                }
+                for g in resp.result
+            ]
+        )
     except grpc.RpcError as e:
         return jsonify({"error": f"gRPC error: {e.details()}"}), 500
 
 
-
-@app.route('/devices')
+@app.route("/devices")
 def devices():
     """Render device management page."""
     if require_auth():
         return require_auth()
-    return render_template('devices.html')
+    return render_template("devices.html")
 
 
-@app.route('/gateways')
+@app.route("/gateways")
 def gateways():
     """Render gateway management page."""
     if require_auth():
         return require_auth()
-    return render_template('gateways.html')
+    return render_template("gateways.html")
 
-@app.route('/logout')
+
+@app.route("/logout")
 def logout():
     """Log out and clear session."""
     session.clear()
-    return redirect(url_for('auth'))
+    return redirect(url_for("auth"))
 
 
-if __name__ == '__main__':
-    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't']
+if __name__ == "__main__":
+    debug_mode = os.getenv("FLASK_DEBUG", "False").lower() in ["true", "1", "t"]
     app.run(debug=debug_mode)
