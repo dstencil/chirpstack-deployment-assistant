@@ -19,19 +19,15 @@ docker run -p 5000:5000 chirpstack-deployment-assistant:latest
 ```
 
 ### Local Build
-
-**1️⃣ Clone the Repository**  
+ 
 ```
 git clone https://github.com/your-username/chirpstack-deployment-assistant.git
 cd chirpstack-deployment-assistant
-```
-
-2️⃣ Run with Docker
-```
 docker build -t chirpstack-deployment-assistant .
 docker run -p 5000:5000 chirpstack-deployment-assistant
 ```
-3️⃣ Open in Browser
+
+### Open in Browser
 ```
 http://localhost:5000
 ```
@@ -62,7 +58,6 @@ http://localhost:5000
 📌 Environment Variables
 ```
 Variable	Description
-FLASK_APP=app.py	Flask entry point
 FLASK_RUN_HOST=0.0.0.0	Allows external access
 FLASK_ENV=production	Sets Flask to production mode
 ```
