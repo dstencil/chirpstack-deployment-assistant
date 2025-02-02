@@ -53,8 +53,6 @@ http://localhost:5000
     Add individual devices/gateways using input fields.
     Delete or modify existing ones
 
-🔧 Configuration
-
 📌 Environment Variables
 ```
 Variable	Description
