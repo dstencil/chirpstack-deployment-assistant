@@ -11,7 +11,7 @@ include_trailing_comma = true
 
 [tool.flake8]
 max-line-length = 88  # Increase from 79 to 88 to match Black
-extend-ignore = ["E203", "W503"]  # Common Black compatibility ignores
+extend-ignore = ["E203", "W503","E501"]  # Common Black compatibility ignores
 
 [build-system]
 requires = ["setuptools", "wheel"]
