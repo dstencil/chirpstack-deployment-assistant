@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@<commit-sha>
+        uses: actions/checkout@v4.2.2
 
       - name: Set Up Python
-        uses: actions/setup-python@<commit-sha>
+        uses: actions/setup-python@5.4.0
         with:
           python-version: 3.12
 
