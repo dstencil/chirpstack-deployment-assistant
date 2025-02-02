@@ -6,9 +6,9 @@ This project is still a rough draft/early release. Features are functional but u
 
 Key To-Do's:
 
-    Proper Login/Logout Handling for server connections
-    Additional Pages for enhanced functionality
-    Ongoing code clean-up and optimizations
+    - Proper Login/Logout Handling for server connections
+    - Additional Pages for enhanced functionality
+    - Ongoing code clean-up and optimizations
     
 ## 🌟 Features
 ✅ **Bulk Upload** – Easily provision **devices & gateways** from CSV.  
