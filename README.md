@@ -1,6 +1,15 @@
 # **Chirpstack Deployment Assistant 🚀**  
 *A web-based tool for bulk provisioning and managing ChirpStack devices & gateways.*
 
+⚠️ Early Release Notice ⚠️
+This project is still a rough draft/early release. Features are functional but under active development. Expect changes, improvements, and potential bugs.
+
+Key To-Do's:
+
+    Proper Login/Logout Handling for server connections
+    Additional Pages for enhanced functionality
+    Ongoing code clean-up and optimizations
+    
 ## 🌟 Features
 ✅ **Bulk Upload** – Easily provision **devices & gateways** from CSV.  
 ✅ **Tenant & Application Auto-Discovery** – Dynamically load **tenants, applications, and device profiles**.  
