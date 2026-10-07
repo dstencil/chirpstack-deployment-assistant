@@ -1,123 +1,97 @@
-name: Lint,Test,Build
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+name: Lint, Test, Audit, Build
 
 on:
   schedule:
-    - cron: '25 11 * * *'
+    - cron: "25 11 * * *"
   push:
-    branches: [ "main" ]
-    # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    branches: ["main"]
+    tags: ["v*.*.*"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
-  # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
-
 jobs:
-  lint:
+  lint-test-audit:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Set Up Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          python-version: 3.12
+          python-version: "3.12"
+          cache: pip
 
-      - name: Install Linting Tools
+      - name: Install dependencies and tooling
         run: |
-          pip install flake8 black isort
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install black flake8 isort pytest pip-audit==2.10.1
 
-      - name: Run Lint Checks
+      - name: Lint
         run: |
-          flake8 .  # Automatically reads from .flake8
-          isort . --check-only  # Reads config from pyproject.toml
-          black --check .       # Uses pyproject.toml settings
-  
-  test:
+          flake8 .
+          isort . --check-only
+          black --check .
+
+      - name: Test
+        run: pytest tests/ --maxfail=1 --disable-warnings -v
+
+      - name: Audit Python dependencies
+        run: python -m pip_audit -r requirements.txt --strict
+
+  build-scan-publish:
     runs-on: ubuntu-latest
-    needs: lint  
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Set Up Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
-        with:
-          python-version: 3.12
-
-      - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest 
-
-      - name: Run Unit Tests
-        run: |
-          pytest tests/ --maxfail=1 --disable-warnings -v 
-  build:
-
-    runs-on: ubuntu-latest
-    needs: test
+    needs: lint-test-audit
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
       id-token: write
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      # Install the cosign tool except on PR
-      # https://github.com/sigstore/cosign-installer
-      - name: Install cosign
-        if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
-        with:
-          cosign-release: 'v2.2.4'
-
-      # Set up BuildKit Docker container builder to be able to build
-      # multi-platform images and export cache
-      # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
 
-      # Login against a Docker registry except on PR
-      # https://github.com/docker/login-action
-      - name: Log into registry ${{ env.REGISTRY }}
+      - name: Build image for security scan
+        run: docker build -t chirpstack-security:${{ github.sha }} .
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: chirpstack-security:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+      - name: Log into GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ github.sha }}
-            type=raw,value=latest,enable={{ is_default_branch }}
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
         id: build-and-push
-        uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
@@ -125,17 +99,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # Sign the resulting Docker image digest except on PRs.
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
-      - name: Sign the published Docker image
-        if: ${{ github.event_name != 'pull_request' }}
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
+
+      - name: Sign published image
+        if: github.event_name != 'pull_request'
         env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
