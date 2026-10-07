@@ -3,5 +3,4 @@ chirpstack-api==4.19.0
 Flask==3.1.3
 grpcio==1.84.0
 gunicorn==26.2.0
-
-# Shared client is installed from the sibling source repository in CI/deploy.
+chirpstack-tools @ git+https://github.com/dstencil/chirpstack-api-python.git@security/chirpstack-hardening-2026-10
