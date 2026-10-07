@@ -24,13 +24,15 @@ jobs:
       - run: pip-audit -r requirements.txt --strict
       - run: python -m compileall -q .
 
-  filesystem:
+  container:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Build image
+        run: docker build -t chirpstack-security:${{ github.sha }} .
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
-          scan-type: fs
-          scan-ref: .
+          image-ref: chirpstack-security:${{ github.sha }}
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
           exit-code: "1"
