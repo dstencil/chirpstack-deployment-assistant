@@ -135,6 +135,19 @@ def _key_is_valid(value):
         return False
 
 
+def _list_all(client, request_factory, page_size=100):
+    """Return all list results using ChirpStack's limit/offset pagination."""
+    items = []
+    offset = 0
+    while True:
+        req = request_factory(page_size, offset)
+        resp = client.List(req, metadata=get_auth_token(), timeout=10)
+        items.extend(resp.result)
+        offset += len(resp.result)
+        if offset >= resp.total_count or not resp.result:
+            return items
+
+
 @app.after_request
 def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -210,12 +223,13 @@ def get_tenants():
         return jsonify({"error": "Not authenticated"}), 401
 
     try:
-        resp = clients["tenant_client"].List(
-            api.ListTenantsRequest(limit=100),
-            metadata=auth_token,
-            timeout=10,
+        items = _list_all(
+            clients["tenant_client"],
+            lambda limit, offset: api.ListTenantsRequest(
+                limit=limit, offset=offset
+            ),
         )
-        return jsonify([{"id": t.id, "name": t.name} for t in resp.result])
+        return jsonify([{"id": t.id, "name": t.name} for t in items])
     except grpc.RpcError as exc:
         app.logger.warning("Failed to list tenants: %s", exc.code().name)
         return jsonify({"error": "Failed to list tenants"}), 502
@@ -230,12 +244,14 @@ def get_applications(tenant_id):
         return jsonify({"error": "Not authenticated"}), 401
 
     try:
-        req = api.ListApplicationsRequest(tenant_id=tenant_id, limit=100)
-        resp = clients["app_client"].List(
-            req, metadata=auth_token, timeout=10
+        items = _list_all(
+            clients["app_client"],
+            lambda limit, offset: api.ListApplicationsRequest(
+                tenant_id=tenant_id, limit=limit, offset=offset
+            ),
         )
         return jsonify(
-            [{"id": item.id, "name": item.name} for item in resp.result]
+            [{"id": item.id, "name": item.name} for item in items]
         )
     except grpc.RpcError as exc:
         app.logger.warning("Failed to list applications: %s", exc.code().name)
@@ -251,11 +267,13 @@ def get_device_profiles(tenant_id):
         return jsonify({"error": "Not authenticated"}), 401
 
     try:
-        req = api.ListDeviceProfilesRequest(tenant_id=tenant_id, limit=100)
-        resp = clients["dp_client"].List(
-            req, metadata=auth_token, timeout=10
+        items = _list_all(
+            clients["dp_client"],
+            lambda limit, offset: api.ListDeviceProfilesRequest(
+                tenant_id=tenant_id, limit=limit, offset=offset
+            ),
         )
-        profiles = [{"id": dp.id, "name": dp.name} for dp in resp.result]
+        profiles = [{"id": dp.id, "name": dp.name} for dp in items]
         if not profiles:
             return (
                 jsonify({"error": "No device profiles found for this tenant."}),
@@ -278,14 +296,28 @@ def get_devices(application_id):
         return jsonify({"error": "Not authenticated"}), 401
 
     try:
-        req = api.ListDevicesRequest(application_id=application_id, limit=100)
-        resp = clients["device_client"].List(
-            req, metadata=auth_token, timeout=10
+        items = _list_all(
+            clients["device_client"],
+            lambda limit, offset: api.ListDevicesRequest(
+                application_id=application_id,
+                limit=limit,
+                offset=offset,
+            ),
         )
         return jsonify(
             [
-                {"id": d.dev_eui, "name": d.name, "dev_eui": d.dev_eui}
-                for d in resp.result
+                {
+                    "id": d.dev_eui,
+                    "name": d.name,
+                    "dev_eui": d.dev_eui,
+                    "device_profile_id": d.device_profile_id,
+                    "last_seen_at": (
+                        d.last_seen_at.ToJsonString()
+                        if d.HasField("last_seen_at")
+                        else None
+                    ),
+                }
+                for d in items
             ]
         )
     except grpc.RpcError as exc:
@@ -508,9 +540,11 @@ def get_gateways(tenant_id):
         return jsonify({"error": "Not authenticated"}), 401
 
     try:
-        req = api.ListGatewaysRequest(tenant_id=tenant_id, limit=100)
-        resp = clients["gateway_client"].List(
-            req, metadata=auth_token, timeout=10
+        items = _list_all(
+            clients["gateway_client"],
+            lambda limit, offset: api.ListGatewaysRequest(
+                tenant_id=tenant_id, limit=limit, offset=offset
+            ),
         )
         return jsonify(
             [
@@ -518,11 +552,13 @@ def get_gateways(tenant_id):
                     "id": g.gateway_id,
                     "name": g.name,
                     "description": g.description,
-                    "latitude": g.location.latitude,
-                    "longitude": g.location.longitude,
-                    "altitude": g.location.altitude,
+                    "last_seen_at": (
+                        g.last_seen_at.ToJsonString()
+                        if g.HasField("last_seen_at")
+                        else None
+                    ),
                 }
-                for g in resp.result
+                for g in items
             ]
         )
     except grpc.RpcError as exc:
