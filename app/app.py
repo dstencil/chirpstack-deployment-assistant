@@ -7,6 +7,7 @@ from pathlib import Path
 import grpc
 from cachetools import TTLCache
 from chirpstack_api import api
+from chirpstack_tools import ChirpStackClient, ChirpStackConfig, DeviceSpec, GatewaySpec
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
@@ -380,70 +381,53 @@ def add_device():
 
 
 def create_device(tenant_id, application_id, row):
-    """Create a device and store LoRaWAN keys using DeviceService.CreateKeys."""
-    clients = get_grpc_clients()
-    auth_token = get_auth_token()
-    if not clients or not auth_token:
+    """Idempotently provision a device through the shared ChirpStack client."""
+    del tenant_id
+    config = _get_credentials()
+    if not session.get("authenticated") or not config:
         return {"error": "Not authenticated"}
 
-    dev_eui = str(row.get("dev_eui") or "").strip()
-    app_key = str(row.get("app_key") or "").strip()
-    nwk_key = str(row.get("nwk_key") or "").strip()
-
-    # LoRaWAN 1.0.x calls the root key AppKey, while the ChirpStack v4 API
-    # exposes that value as nwk_key. For 1.1.x callers can supply both.
-    root_nwk_key = nwk_key or app_key
-    if not _key_is_valid(root_nwk_key):
-        return {"error": "LoRaWAN network/AppKey must be 32 hexadecimal characters"}
-    if nwk_key and app_key and not _key_is_valid(app_key):
-        return {"error": "LoRaWAN AppKey must be 32 hexadecimal characters"}
-
-    created = False
     try:
-        req = api.CreateDeviceRequest()
-        req.device.dev_eui = dev_eui
-        req.device.name = row["device_name"]
-        req.device.description = row.get("description", "")
-        req.device.application_id = application_id
-        req.device.device_profile_id = row["device_profile_id"]
-
-        # AppEUI was renamed JoinEUI in LoRaWAN terminology.
-        if row.get("app_eui"):
-            req.device.join_eui = str(row["app_eui"]).strip()
-
-        clients["device_client"].Create(
-            req, metadata=auth_token, timeout=10
+        app_key = str(row.get("app_key") or "").strip() or None
+        explicit_nwk_key = str(row.get("nwk_key") or "").strip() or None
+        spec = DeviceSpec(
+            dev_eui=str(row.get("dev_eui") or ""),
+            name=str(row.get("device_name") or ""),
+            device_profile_id=str(row.get("device_profile_id") or ""),
+            nwk_key=explicit_nwk_key or app_key or "",
+            app_key=app_key if explicit_nwk_key else None,
+            join_eui=str(
+                row.get("join_eui") or row.get("app_eui") or ""
+            ).strip()
+            or None,
+            description=str(row.get("description") or ""),
         )
-        created = True
-
-        key_req = api.CreateDeviceKeysRequest()
-        key_req.device_keys.dev_eui = dev_eui
-        key_req.device_keys.nwk_key = root_nwk_key
-        if nwk_key and app_key:
-            key_req.device_keys.app_key = app_key
-
-        clients["device_client"].CreateKeys(
-            key_req, metadata=auth_token, timeout=10
-        )
-        return {
-            "message": f"Device '{row['device_name']}' created successfully."
-        }
-    except (KeyError, TypeError) as exc:
-        return {"error": f"Invalid device data: {exc}"}
+        with ChirpStackClient(
+            ChirpStackConfig(
+                server=config["server"],
+                api_token=config["api_token"],
+                tls=os.getenv("CHIRPSTACK_GRPC_TLS", "false").lower()
+                in {"1", "true", "yes"},
+            )
+        ) as client:
+            status = client.ensure_device(
+                application_id=application_id,
+                device_profile_id=spec.device_profile_id,
+                dev_eui=spec.dev_eui,
+                name=spec.name,
+                nwk_key=spec.nwk_key,
+                app_key=spec.app_key,
+                join_eui=spec.join_eui,
+                description=spec.description,
+            )
+        return {"status": status, "dev_eui": spec.dev_eui}
+    except ValueError as exc:
+        return {"error": str(exc)}
     except grpc.RpcError as exc:
         app.logger.warning(
-            "Failed to create device %s: %s", dev_eui, exc.code().name
+            "Device provisioning failed: %s", exc.code().name
         )
-        if created:
-            try:
-                clients["device_client"].Delete(
-                    api.DeleteDeviceRequest(dev_eui=dev_eui),
-                    metadata=auth_token,
-                    timeout=10,
-                )
-            except grpc.RpcError:
-                pass
-        return {"error": "Failed to create device"}
+        return {"error": "Failed to provision device"}
 
 
 @app.route("/remove-device/<device_id>", methods=["DELETE"])
@@ -490,45 +474,49 @@ def upload_gateways():
 
 
 def create_gateway(tenant_id, row):
-    """Create a single gateway from CSV or manual input."""
-    clients = get_grpc_clients()
-    auth_token = get_auth_token()
-    if not clients or not auth_token:
+    """Idempotently provision a gateway through the shared client."""
+    config = _get_credentials()
+    if not session.get("authenticated") or not config:
         return {"error": "Not authenticated"}
 
-    def safe_float(value, default=0.0):
-        try:
-            value = str(value or "").strip()
-            return float(value) if value else default
-        except ValueError:
-            return default
-
     try:
-        req = api.CreateGatewayRequest()
-        req.gateway.gateway_id = row["gateway_id"]
-        req.gateway.name = row["gateway_name"]
-        req.gateway.description = row.get("description", "")
-        req.gateway.tenant_id = tenant_id
-        req.gateway.location.latitude = safe_float(row.get("latitude"))
-        req.gateway.location.longitude = safe_float(row.get("longitude"))
-        req.gateway.location.altitude = safe_float(row.get("altitude"))
-        req.gateway.stats_interval = (
-            int(row.get("stats_interval", 30))
-            if row.get("stats_interval")
-            else 30
+        spec = GatewaySpec(
+            gateway_id=str(row.get("gateway_id") or ""),
+            name=str(row.get("gateway_name") or ""),
+            description=str(row.get("description") or ""),
+            latitude=float(row.get("latitude") or 0),
+            longitude=float(row.get("longitude") or 0),
+            altitude=float(row.get("altitude") or 0),
+            stats_interval=int(row.get("stats_interval") or 30),
         )
-
-        clients["gateway_client"].Create(
-            req, metadata=auth_token, timeout=10
-        )
-        return {
-            "message": f"Gateway '{row['gateway_name']}' created successfully."
-        }
-    except (KeyError, TypeError, ValueError):
-        return {"error": "Invalid gateway data"}
+        with ChirpStackClient(
+            ChirpStackConfig(
+                server=config["server"],
+                api_token=config["api_token"],
+                tls=os.getenv("CHIRPSTACK_GRPC_TLS", "false").lower()
+                in {"1", "true", "yes"},
+            )
+        ) as client:
+            status = client.ensure_gateway(
+                tenant_id=tenant_id,
+                gateway_id=spec.gateway_id,
+                name=spec.name,
+                description=spec.description,
+                latitude=spec.latitude,
+                longitude=spec.longitude,
+                altitude=spec.altitude,
+                stats_interval=spec.stats_interval,
+                tags=spec.tags,
+                metadata=spec.metadata,
+            )
+        return {"status": status, "gateway_id": spec.gateway_id}
+    except (TypeError, ValueError) as exc:
+        return {"error": str(exc)}
     except grpc.RpcError as exc:
-        app.logger.warning("Failed to create gateway: %s", exc.code().name)
-        return {"error": "Failed to create gateway"}
+        app.logger.warning(
+            "Gateway provisioning failed: %s", exc.code().name
+        )
+        return {"error": "Failed to provision gateway"}
 
 
 @app.route("/gateways/<tenant_id>", methods=["GET"])
