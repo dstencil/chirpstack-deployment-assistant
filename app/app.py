@@ -375,9 +375,9 @@ def create_device(tenant_id, application_id, row):
         req.device.application_id = application_id
         req.device.device_profile_id = row["device_profile_id"]
 
-        # AppEUI / JoinEUI is not secret and may be retained as metadata.
+        # AppEUI was renamed JoinEUI in LoRaWAN terminology.
         if row.get("app_eui"):
-            req.device.variables["app_eui"] = row["app_eui"]
+            req.device.join_eui = str(row["app_eui"]).strip()
 
         clients["device_client"].Create(
             req, metadata=auth_token, timeout=10
